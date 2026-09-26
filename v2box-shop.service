@@ -1,0 +1,15 @@
+[Unit]
+Description=V2Box Key Shop Bot
+After=network-online.target x-ui.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/v2box-shop
+EnvironmentFile=/root/v2box-shop/.env
+ExecStart=/root/v2box-shop/venv/bin/python /root/v2box-shop/app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
