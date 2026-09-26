@@ -1,0 +1,33 @@
+<!doctype html><html lang="my"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{shop}}</title>
+<style>
+body{font-family:Arial;background:#0f172a;color:#e5e7eb;margin:0;padding:16px}.wrap{max-width:1250px;margin:auto}.top{display:flex;justify-content:space-between;align-items:center}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.card{background:#111827;border:1px solid #263244;border-radius:14px;padding:16px;margin:12px 0}.stat{font-size:28px;font-weight:bold}input,button{padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:white;margin:4px}button{background:#2563eb;border:0;cursor:pointer}.danger{background:#dc2626}.ok{background:#16a34a}table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:9px;border-bottom:1px solid #263244;text-align:left;vertical-align:top}code{word-break:break-all}.scroll{overflow:auto}small{color:#94a3b8}
+</style></head><body><div class="wrap">
+<div class="top"><h1>👑 {{shop}}</h1><a href="/logout" style="color:#fff">Logout</a></div>
+<div class="grid">
+<div class="card">🔑 Total<div class="stat">{{stats.total}}</div></div>
+<div class="card">🟢 Active<div class="stat">{{stats.active}}</div></div>
+<div class="card">👤 Users<div class="stat">{{stats.users}}</div></div>
+<div class="card">💰 Sold<div class="stat">{{"{:,}".format(stats.sold)}} {{currency}}</div></div>
+</div>
+<div class="card"><h2>➕ Create & Sell V2Box Key</h2>
+<form method="post" action="/create">
+<input name="tg_id" type="number" placeholder="Buyer Telegram ID" required>
+<input name="name" placeholder="Package name" value="Premium">
+<input name="days" type="number" placeholder="Days" value="30" required>
+<input name="traffic_gb" type="number" step="0.1" placeholder="Traffic GB" value="100" required>
+<input name="price" type="number" placeholder="Price" value="5000" required>
+<button class="ok">Create in 3x-ui + Send to User</button>
+</form><small>ဒီခလုတ်က Stock key မဟုတ်ဘဲ 3x-ui/Xray ထဲမှာ client အသစ်ကို တိုက်ရိုက်ဖန်တီးပါတယ်။</small></div>
+<div class="card"><h2>📊 Customer Keys & Traffic</h2><div class="scroll"><table><tr><th>Key</th><th>User</th><th>Limit / Used</th><th>Status</th><th>Last Online</th><th>Action</th></tr>
+{% for k in keys %}<tr>
+<td><b>#{{k.id}} {{k.name}}</b><br><small>{{k.email}}<br>{{k.uuid}}</small></td>
+<td>{{k.tg_id}}<br>@{{k.username}}</td>
+<td>Limit: {{k.traffic_gb:g}} GB<br>Used: {{bytes_fmt(k.used)}}<br>↓ {{bytes_fmt(k.down)}} / ↑ {{bytes_fmt(k.up)}}</td>
+<td>{{"🟢" if k.status=="active" else "🔴"}} {{k.status}}</td>
+<td>{% if k.last_online %}{{k.last_online}}{% else %}Never{% endif %}</td>
+<td>
+{% if k.status=="active" %}<form method="post" action="/disable/{{k.id}}"><button>Disable</button></form>
+{% else %}<form method="post" action="/enable/{{k.id}}"><button class="ok">Enable</button></form>{% endif %}
+<form method="post" action="/delete/{{k.id}}" onsubmit="return confirm('Delete this key from 3x-ui?')"><button class="danger">Delete</button></form>
+</td></tr>{% endfor %}</table></div></div>
+</div></body></html>
