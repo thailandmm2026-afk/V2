@@ -22,7 +22,7 @@ FP=os.getenv("VLESS_FP","chrome")
 PUBKEY=os.getenv("REALITY_PUBLIC_KEY","")
 SHORT_ID=os.getenv("REALITY_SHORT_ID","")
 SPX=os.getenv("REALITY_SPX","/")
-WEB_PORT=int(os.getenv("WEB_PORT","8080"))
+WEB_PORT=int(os.getenv("PORT", os.getenv("WEB_PORT", "8080")))
 WEB_HOST=os.getenv("WEB_HOST","0.0.0.0")
 ADMIN_PASSWORD=os.getenv("ADMIN_PANEL_PASSWORD","")
 SHOP_NAME=os.getenv("SHOP_NAME","V2BOX KEY SHOP")
@@ -89,13 +89,12 @@ class XUI:
         self.login()
         return self.call("GET","/panel/api/inbounds/list")
     def add_vless(self,email,uid,total_bytes,expiry_ms,tg_id,sub_id,flow=""):
-        # 3x-ui's legacy endpoint expects settings as a JSON string.
         payload={"id":INBOUND_ID,"settings":json.dumps({"clients":[{
             "id":uid,"alterId":0,"email":email,"limitIp":1,
             "totalGB":total_bytes,"expiryTime":expiry_ms,
             "enable":True,"tgId":str(tg_id),"subId":sub_id,
             **({"flow":flow} if flow else {})
-        }})}
+        }]})}
         return self.call("POST","/panel/api/inbounds/addClient",json=payload)
     def traffic(self,email):
         return self.call("GET",f"/panel/api/inbounds/getClientTraffics/{quote(email,safe='')}")
@@ -185,7 +184,6 @@ def create():
                      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                   (tg_id,name,email,uid,sub_id,days,traffic,price,expiry,link,iso(),iso(),INBOUND_ID))
         c.commit(); c.close()
-        # notify buyer
         if BOT_TOKEN:
             try:
                 requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
@@ -198,7 +196,6 @@ def create():
 @app.post("/disable/<int:kid>")
 @admin_only
 def disable(kid):
-    # Local status is changed here; 3x-ui state changes can vary by release.
     c=db(); c.execute("UPDATE keys SET status='disabled' WHERE id=?",(kid,)); c.commit(); c.close()
     return redirect(url_for("dashboard"))
 
@@ -229,7 +226,6 @@ def key_api(kid):
     except Exception as e:t={"error":str(e)}
     return {"key":dict(r),"traffic":t}
 
-# Telegram
 def kb():
     return InlineKeyboardMarkup([[InlineKeyboardButton("🛒 Packages / Buy",callback_data="shop")],
                                  [InlineKeyboardButton("🔑 My Keys",callback_data="mykeys")]])
@@ -264,18 +260,25 @@ async def tg_buttons(update:Update,ctx:ContextTypes.DEFAULT_TYPE):
         else:
             text="🔑 <b>My Keys</b>\n\n"
             for r in rows:
-                try:t=xui().traffic(r["email"]).get("obj") or {}; used=bytes_fmt((t.get("up",0)+t.get("down",0)))
-            except: used="N/A"
-            text+=f"📦 <b>{r['name']}</b>\n📊 Used: {used}\n🔗 <code>{r['vless']}</code>\n\n"
+                try:
+                    t=xui().traffic(r["email"]).get("obj") or {}
+                    used=bytes_fmt((t.get("up",0)+t.get("down",0)))
+                except: used="N/A"
+                text+=f"📦 <b>{r['name']}</b>\n📊 Used: {used}\n🔗 <code>{r['vless']}</code>\n\n"
             await q.edit_message_text(text,parse_mode="HTML")
     c.close()
 
 async def bot_main():
     init_db()
+    if not BOT_TOKEN:
+        await asyncio.Event().wait()
+        return
     application=Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start",start))
     application.add_handler(CallbackQueryHandler(tg_buttons))
-    await application.initialize(); await application.start(); await application.updater.start_polling()
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
     await asyncio.Event().wait()
 
 def web_main():
